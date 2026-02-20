@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: educablog
+    ports:
+      - "5432:5432"
+    volumes:
+      - educa_blog_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d educablog"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/educablog?schema=public
+      JWT_SECRET: change-me-in-production
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "npm run generate && npx prisma migrate deploy && npm run start"]
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+
+volumes:
+  educa_blog_db:

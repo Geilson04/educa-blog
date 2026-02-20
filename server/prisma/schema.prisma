@@ -1,0 +1,64 @@
+// Prisma schema definition for the educablog backend. This file
+// describes the database models and relationships used by the API.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// User account. A user can be either a teacher (DOCENTE) or student (ALUNO).
+model User {
+  id        String            @id @default(uuid())
+  name      String
+  email     String            @unique
+  password  String
+  role      Role
+  createdAt DateTime          @default(now())
+  activities Activity[]       @relation("TeacherActivities")
+  studentActivities StudentActivity[]
+}
+
+/// Activity created by a teacher. Contains basic metadata and
+/// content. Activities can be assigned to many students via the
+/// StudentActivity join model.
+model Activity {
+  id          String            @id @default(uuid())
+  title       String
+  description String?
+  content     String
+  createdAt   DateTime          @default(now())
+  teacher     User              @relation("TeacherActivities", fields: [teacherId], references: [id])
+  teacherId   String
+  assignments StudentActivity[]
+}
+
+/// Join table linking students to activities. It tracks the
+/// completion status and any submission content for each student.
+model StudentActivity {
+  id         String         @id @default(uuid())
+  student    User           @relation(fields: [studentId], references: [id])
+  studentId  String
+  activity   Activity       @relation(fields: [activityId], references: [id])
+  activityId String
+  status     ActivityStatus @default(PENDING)
+  submission String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+/// User roles. Teachers have the DOCENTE role, students have the ALUNO role.
+enum Role {
+  DOCENTE
+  ALUNO
+}
+
+/// Possible states of a student's assignment.
+enum ActivityStatus {
+  PENDING
+  COMPLETED
+  SUBMITTED
+}
